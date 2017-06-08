@@ -1,9 +1,19 @@
-#define OUTSIDE_CMSSW_RELEASE 0
+//
+//  The implementation of the PixelResolutinHistograms.cc class.  Please
+//  look at PixelResolutionHistograms.h header file for the interface.
+//
+//------------------------------------------------------------------------------
 
-#if OUTSIDE_CMSSW_RELEASE
+// The switch, undefined in CMSSW release, and defined by standalone compilation script:
+
+
+#ifdef SI_PIXEL_TEMPLATE_STANDALONE
+//
+//--- Stand-alone: Include a the header file from the local directory, as well as
+//    a dummy implementation of SimpleHistogramGenerator.
+//
 #include "PixelResolutionHistograms.h"
-
-//--- Include a dummy implementation of SimpleHistogramGenerator.
+//
 class TH1F;
 class SimpleHistogramGenerator {
 public:
@@ -11,14 +21,17 @@ public:
 private:
   TH1F * hist_;
 };
-
+//
 #else
-//--- The real thing.
+//--- We're inside a CMSSW release: Include the real thing.
+//
 #include "FastSimulation/TrackingRecHitProducer/interface/PixelResolutionHistograms.h"
 #include "FastSimulation/Utilities/interface/RandomEngineAndDistribution.h"
 #include "FastSimulation/Utilities/interface/SimpleHistogramGenerator.h"
-
+//
 #endif
+
+
 
 
 // Generic C stuff
