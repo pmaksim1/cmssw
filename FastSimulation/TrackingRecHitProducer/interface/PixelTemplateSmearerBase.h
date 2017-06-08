@@ -30,11 +30,11 @@
 // STL
 #include <vector>
 #include <string>
-#include <memory>
 
 class TFile;
 class RandomEngineAndDistribution;
 class SimpleHistogramGenerator;
+class PixelResolutionHistograms;
 
 class PixelTemplateSmearerBase:
     public TrackingRecHitAlgorithm
@@ -62,24 +62,32 @@ class PixelTemplateSmearerBase:
         int resqbin_binMin, resqbin_binWidth;
         unsigned int resqbin_binN;
         
+	// &&& The old storage mechanism: goes away.
+        ///std::map<unsigned int, const SimpleHistogramGenerator*> theXHistos;
+        ///std::map<unsigned int, const SimpleHistogramGenerator*> theYHistos;
 
-        std::map<unsigned int, const SimpleHistogramGenerator*> theXHistos;
-        std::map<unsigned int, const SimpleHistogramGenerator*> theYHistos;
-
-        std::unique_ptr<TFile> theEdgePixelResolutionFile;
+	//--- The new histogram storage containers.
+        PixelResolutionHistograms * theEdgePixelResolutions;
         std::string theEdgePixelResolutionFileName;
-        std::unique_ptr<TFile> theBigPixelResolutionFile;
+
+        PixelResolutionHistograms * theBigPixelResolutions;
         std::string theBigPixelResolutionFileName;
-        std::unique_ptr<TFile> theRegularPixelResolutionFile;
+
+        PixelResolutionHistograms * theRegularPixelResolutions;
         std::string theRegularPixelResolutionFileName;
-        std::unique_ptr<TFile> theMergingProbabilityFile;
+	
+	//--- Files with hit merging information:
+        TFile* theMergingProbabilityFile;
         std::string theMergingProbabilityFileName;
-        std::unique_ptr<TFile> theMergedPixelResolutionXFile;
+
+        TFile* theMergedPixelResolutionXFile;
         std::string theMergedPixelResolutionXFileName;
-        std::unique_ptr<TFile> theMergedPixelResolutionYFile;                                                                                        
+
+        TFile* theMergedPixelResolutionYFile;                  
         std::string theMergedPixelResolutionYFileName;
 
-        unsigned int theLayer;
+	
+        unsigned int theLayer;   // &&& Why do we need this?
 
     public:
 
