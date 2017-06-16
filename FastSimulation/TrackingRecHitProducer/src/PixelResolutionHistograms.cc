@@ -15,6 +15,7 @@
 #include "PixelResolutionHistograms.h"
 //
 class TH1F;
+class TH2F;
 class SimpleHistogramGenerator {
 public:
   SimpleHistogramGenerator(TH1F * hist) : hist_(hist) {};
@@ -42,6 +43,7 @@ private:
 // ROOT
 #include <TFile.h>
 #include <TH1F.h>
+#include <TH2F.h>
 
 // Global definitions 
 const float cmtomicron = 10000.0;
@@ -54,34 +56,40 @@ const float cmtomicron = 10000.0;
 //  definition of the binning.)
 //------------------------------------------------------------------------------
 PixelResolutionHistograms::
-PixelResolutionHistograms( unsigned int detType, 
+PixelResolutionHistograms( const char * filename,   // ROOT file for histograms
+			   const char * rootdir,    // Subdirectory in the file, "" if none
+			   const char * descTitle,  // Descriptive title	     
+			   unsigned int detType,    // Where we are... (&&& do we need this?)
 			   double 	cotbetaBinWidth,
 			   double 	cotbetaLowEdge,
 			   int	cotbetaBins,
 			   double	cotalphaBinWidth,
 			   double	cotalphaLowEdge,
-			   int	cotalphaBins,
-			   int	qbinWidth,
-			   int	qbins )
-  : detType_          ( detType ),
+			   int	cotalphaBins) //,
+			   //int	qbinWidth,
+			   //int	qbins )
+  : weOwnHistograms_(true),                          // we'll be making some histos
+    detType_          ( detType ),
     cotbetaBinWidth_  ( cotbetaBinWidth ),
     cotbetaLowEdge_   ( cotbetaLowEdge ), 
     cotbetaBins_      ( cotbetaBins ),
     cotalphaBinWidth_ ( cotalphaBinWidth  ),
     cotalphaLowEdge_  ( cotalphaLowEdge ),
     cotalphaBins_     ( cotalphaBins ),
-    qbinWidth_        ( qbinWidth ),
-    qbins_            ( qbins ),
+    qbinWidth_        ( 1 ),
+    qbins_            ( 4 ),
+    binningHisto_(nullptr),
     resMultiPixelXHist_(), resSinglePixelXHist_(),  // all to nullptr
     resMultiPixelYHist_(), resSinglePixelYHist_(),  // all to nullptr
     qbinHist_(),                                    // all to nullptr
-    file_(), 
-    status_(0)
+    file_(nullptr),
+    status_(0),
+    resMultiPixelXGen_(), resSinglePixelXGen_(), 
+    resMultiPixelYGen_(), resSinglePixelYGen_(),
+    qbinGen_()
 {
-  Char_t histo[200];
-  Char_t title[200];
-  
-  TFile output( "PixelBarrelResolution.root", "recreate" );
+
+  file_ = new TFile( filename, "recreate" );
   //Resolution binning
   // const double 	cotbetaBinWidth = 1.0;
   // const double 	cotbetaLowEdge	= -11.5 ;
@@ -91,7 +99,19 @@ PixelResolutionHistograms( unsigned int detType,
   // const int	cotalphaBins	= 9;
   // const int	qbinWidth	= 1;
   // const int	qbins		= 4;
+
+  // Dummy 2D histogram to store binning:
+  binningHisto_ = new TH2F( "ResHistoBinning", descTitle,
+			    cotbetaBins,  cotbetaLowEdge,  cotbetaLowEdge  + cotbetaBins*cotbetaBinWidth,
+			    cotalphaBins, cotalphaLowEdge, cotalphaLowEdge + cotalphaBins*cotalphaBinWidth );
+
+  // Store detType in the underflow bin
+  binningHisto_->SetBinContent(0, 0, detType_);
   
+  // All other histograms:
+  Char_t histo[200];
+  Char_t title[200];
+  //
   for( int ii=0; ii<cotbetaBins_; ii++ ) {
     for( int jj=0; jj<cotalphaBins_; jj++ ) {
       for( int kk=0; kk<qbins_; kk++ ) {
@@ -159,30 +179,26 @@ PixelResolutionHistograms( unsigned int detType,
 //------------------------------------------------------------------------------
 PixelResolutionHistograms::
 PixelResolutionHistograms( const char * filename, 
-			   const char * rootdir,
-			   unsigned int detType, 
-			   double 	cotbetaBinWidth,
-			   double 	cotbetaLowEdge,
-			   int	cotbetaBins,
-			   double	cotalphaBinWidth,
-			   double	cotalphaLowEdge,
-			   int	cotalphaBins,
-			   int	qbinWidth,
-			   int	qbins )
-  : detType_          ( detType ),
-    cotbetaBinWidth_  ( cotbetaBinWidth ),
-    cotbetaLowEdge_   ( cotbetaLowEdge ), 
-    cotbetaBins_      ( cotbetaBins ),
-    cotalphaBinWidth_ ( cotalphaBinWidth  ),
-    cotalphaLowEdge_  ( cotalphaLowEdge ),
-    cotalphaBins_     ( cotalphaBins ),
-    qbinWidth_        ( qbinWidth ),
-    qbins_            ( qbins ),
+			   const char * rootdir )
+  : weOwnHistograms_(false),                          // we'll be making some histos
+    detType_          (-1),
+    cotbetaBinWidth_  (0),
+    cotbetaLowEdge_   (0), 
+    cotbetaBins_      (0),
+    cotalphaBinWidth_ (0),
+    cotalphaLowEdge_  (0),
+    cotalphaBins_     (0),
+    qbinWidth_        (1),       // &&& Is this ever going to change?
+    qbins_            (4),       // &&& Is this ever going to change?
+    binningHisto_(nullptr),
     resMultiPixelXHist_(), resSinglePixelXHist_(),  // all to nullptr
     resMultiPixelYHist_(), resSinglePixelYHist_(),  // all to nullptr
     qbinHist_(),                                    // all to nullptr
-    file_(),
-    status_(0)
+    file_(nullptr),
+    status_(0),
+    resMultiPixelXGen_(), resSinglePixelXGen_(), 
+    resMultiPixelYGen_(), resSinglePixelYGen_(),
+    qbinGen_()
 {
   Char_t histo[200];       // the name of the histogram
   Char_t title[200];       // histo title, for debugging and sanity checking (compare inside file)
@@ -194,6 +210,27 @@ PixelResolutionHistograms( const char * filename,
     status_ = 1;
     return;
   }
+
+  //--- The dummy 2D histogram with the binning of cot\beta and cot\alpha:
+  binningHisto_ = (TH2F*) file_->Get( Form( "%s%s" , rootdir, "ResHistoBinning" ) );
+  if ( !binningHisto_ ) {
+    status_ = 11;
+    return;
+  }
+
+  //--- Fish out detType from the underflow bin:
+  detType_ = binningHisto_->GetBinContent(0, 0);
+
+  //--- Now we fill the binning variables:
+  cotbetaAxis_      = binningHisto_->GetXaxis();
+  cotbetaBinWidth_  = binningHisto_->GetXaxis()->GetBinWidth(1);  // assume all same width
+  cotbetaLowEdge_   = binningHisto_->GetXaxis()->GetXmin();       // low edge of the first bin
+  cotbetaBins_      = binningHisto_->GetXaxis()->GetNbins();
+  cotalphaAxis_     = binningHisto_->GetYaxis();
+  cotalphaBinWidth_ = binningHisto_->GetYaxis()->GetBinWidth(1);  // assume all same width;
+  cotalphaLowEdge_  = binningHisto_->GetYaxis()->GetXmin();       // low edge of the first bin;
+  cotalphaBins_     = binningHisto_->GetYaxis()->GetNbins();
+  
   
   for( int ii=0; ii<cotbetaBins_; ii++ ) {
     for( int jj=0; jj<cotalphaBins_; jj++ ) {
@@ -313,28 +350,42 @@ PixelResolutionHistograms::~PixelResolutionHistograms()
   //--- Delete histograms, but only if we own them. If 
   //--- they came from a file, let them be.
   //
-  if ( file_ ) {
+  if ( ! weOwnHistograms_ ) {
+    //--- Read the histograms from the TFile, the file will take care of them.
     file_->Close();
     delete file_ ;
     file_ = 0;
   }
   else {
-    //--- We made the histograms, so delete them all.
-    for( int ii=0; ii<cotbetaBins_; ii++ ) {
-      for( int jj=0; jj<cotalphaBins_; jj++ ) {
-	for( int kk=0; kk<qbins_; kk++ ) {
-	  delete resMultiPixelXHist_ [ ii ][ jj ][ kk ];
-	  delete resMultiPixelYHist_ [ ii ][ jj ][ kk ];
-	}
-      }
-    }
-    for( int ii=0; ii<cotbetaBins_; ii++ ) {
-      for( int jj=0; jj<cotalphaBins_; jj++ ) {
-	delete resSinglePixelXHist_ [ ii ][ jj ];
-	delete resSinglePixelYHist_ [ ii ][ jj ]; 
-	delete qbinHist_ [ ii ][ jj ];
-      }
-    }
+    //--- We made the histograms, so first write them inthe output ROOT file and close it.
+    std::cout
+      << "PixelResHistoStore: Writing the histograms to the output file. " // << std::string( filename )
+      << std::endl;
+    file_->Write();
+    file_->Close();
+    delete file_ ;
+    file_ = 0;
+
+    // Well, apparently, ROOT file has the ownership, and once the file is closed,
+    // all of these guys are deleted.  So, we don't need to do anything.
+    // //--- Then, delete them all.
+    // delete binningHisto_ ;
+
+    // for( int ii=0; ii<cotbetaBins_; ii++ ) {
+    //   for( int jj=0; jj<cotalphaBins_; jj++ ) {
+    // 	for( int kk=0; kk<qbins_; kk++ ) {
+    // 	  delete resMultiPixelXHist_ [ ii ][ jj ][ kk ];
+    // 	  delete resMultiPixelYHist_ [ ii ][ jj ][ kk ];
+    // 	}
+    //   }
+    // }
+    // for( int ii=0; ii<cotbetaBins_; ii++ ) {
+    //   for( int jj=0; jj<cotalphaBins_; jj++ ) {
+    // 	delete resSinglePixelXHist_ [ ii ][ jj ];
+    // 	delete resSinglePixelYHist_ [ ii ][ jj ]; 
+    // 	delete qbinHist_ [ ii ][ jj ];
+    //   }
+    // }
   } // else
 
 

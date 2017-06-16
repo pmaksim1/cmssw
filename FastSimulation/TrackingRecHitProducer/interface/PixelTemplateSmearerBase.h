@@ -51,22 +51,14 @@ class PixelTemplateSmearerBase:
         std::vector< SiPixelTemplateStore > thePixelTemp_;
         int templateId;
         
-        bool isFlipped(const PixelGeomDetUnit* theDet) const;
-        //isForward, true for forward, false for barrel
-        bool isForward;
+        //--- Flag to tell us whether we are in barrel or in forward.
+	//    This is needed since the parameterization is slightly
+	//    different for forward, since all forward detectors cover
+	//    a smaller range of local incidence angles and thus
+	//    the clusters are shorter and have less charge.
+        bool isBarrel;
         
-        double rescotAlpha_binMin , rescotAlpha_binWidth;
-        unsigned int rescotAlpha_binN;
-        double rescotBeta_binMin  , rescotBeta_binWidth;
-        unsigned int rescotBeta_binN;
-        int resqbin_binMin, resqbin_binWidth;
-        unsigned int resqbin_binN;
-        
-	// &&& The old storage mechanism: goes away.
-        ///std::map<unsigned int, const SimpleHistogramGenerator*> theXHistos;
-        ///std::map<unsigned int, const SimpleHistogramGenerator*> theYHistos;
-
-	//--- The new histogram storage containers.
+	//--- The histogram storage containers.
         PixelResolutionHistograms * theEdgePixelResolutions;
         std::string theEdgePixelResolutionFileName;
 
@@ -77,20 +69,17 @@ class PixelTemplateSmearerBase:
         std::string theRegularPixelResolutionFileName;
 	
 	//--- Files with hit merging information:
-        TFile* theMergingProbabilityFile;
+        TFile * theMergingProbabilityFile;
         std::string theMergingProbabilityFileName;
 
-        TFile* theMergedPixelResolutionXFile;
+        TFile * theMergedPixelResolutionXFile;
         std::string theMergedPixelResolutionXFileName;
 
-        TFile* theMergedPixelResolutionYFile;                  
+        TFile * theMergedPixelResolutionYFile;                  
         std::string theMergedPixelResolutionYFileName;
 
 	
-        unsigned int theLayer;   // &&& Why do we need this?
-
     public:
-
         explicit PixelTemplateSmearerBase(  const std::string& name,
 			              const edm::ParameterSet& config,
 			              edm::ConsumesCollector& consumesCollector );

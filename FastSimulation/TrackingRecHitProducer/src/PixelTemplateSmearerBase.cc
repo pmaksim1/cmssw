@@ -32,6 +32,7 @@
 #include <TH1F.h>
 #include <TH2F.h>
 
+using namespace std;
 
 const double microntocm = 0.0001;
 
@@ -43,29 +44,56 @@ PixelTemplateSmearerBase::PixelTemplateSmearerBase(
 ):
     TrackingRecHitAlgorithm(name,config,consumesCollector)
 {
+    //--- Basic stuff
     mergeHitsOn = config.getParameter<bool>("MergeHitsOn");
-    templateId = config.getParameter<int> ( "templateId" );
+    isBarrel    = config.getParameter<bool> ( "isBarrel" );
+
+    //--- Resolution file names.
+    theBigPixelResolutionFileName     = config.getParameter<string>( "BigPixelResolutionFile" );
+    theEdgePixelResolutionFileName    = config.getParameter<string>( "EdgePixelResolutionFile" );
+    theRegularPixelResolutionFileName = config.getParameter<string>( "RegularPixelResolutionFile" );
+
+    //--- Create the resolution histogram objects, which will load the histograms
+    //    and initialize random number generators.
+    //    &&& TODO: check status, throw exceptions here!
+    //
+    theRegularPixelResolutions =
+      new PixelResolutionHistograms( theRegularPixelResolutionFileName.c_str(), "" );
+    
+    theBigPixelResolutions =
+      new PixelResolutionHistograms( theBigPixelResolutionFileName.c_str(), "" );
+    
+    theEdgePixelResolutions =
+      new PixelResolutionHistograms( theEdgePixelResolutionFileName.c_str(), "" );
+
+    
+    //--- Merging info.
+    theMergingProbabilityFileName     = config.getParameter<string>( "MergingProbabilityFile" );
+    theMergingProbabilityFile         = new TFile( edm::FileInPath( theMergingProbabilityFileName ).fullPath().c_str()  ,"READ");
+    theMergedPixelResolutionXFileName = config.getParameter<string>( "MergedPixelResolutionXFile" );
+    theMergedPixelResolutionXFile     = new TFile( edm::FileInPath( theMergedPixelResolutionXFileName ).fullPath().c_str()  ,"READ");
+    theMergedPixelResolutionYFileName = config.getParameter<string>( "MergedPixelResolutionYFile" );
+    theMergedPixelResolutionYFile     = new TFile( edm::FileInPath( theMergedPixelResolutionYFileName ).fullPath().c_str()  ,"READ");
+
+
+    //--- Load the templates.
+    templateId  = config.getParameter<int> ( "templateId" );
+    if (!SiPixelTemplate::pushfile(templateId, thePixelTemp_))
+    {
+      throw cms::Exception("PixelTemplateSmearerPlugin:")
+	<<"SiPixel Template " << templateId << " Not Loaded Correctly!"<<endl;
+    }
+
+
 }
 
 
 PixelTemplateSmearerBase::~PixelTemplateSmearerBase()
 {
-  //--- The new histogram storage containers.
+  //--- Delete the histogram storage containers.
   delete theEdgePixelResolutions;
   delete theBigPixelResolutions;
   delete theRegularPixelResolutions;
-  //
-  // &&& Old storage, goes away:
-  // for (auto it = theXHistos.begin(); it != theXHistos.end(); ++it )
-  //   {
-  //       delete it->second;
-  //   }
-  //   for (auto it = theYHistos.begin(); it != theYHistos.end(); ++it )
-  //   {
-  //       delete it->second;
-  //   }
-  //   theXHistos.clear();
-  //   theYHistos.clear();
 }
 
 TrackingRecHitProductPtr 
@@ -117,7 +145,7 @@ PixelTemplateSmearerBase::process(TrackingRecHitProductPtr product) const
             for (int i = 0; i < nHits; ++i )
             {
                 //initialize this cell to a NULL pointer here
-                mergeGroupByHit[i] = nullptr;       
+                mergeGroupByHit[i] = nullptr;
             }
             for ( int i = 0; i < nHits-1; ++i )
             {
@@ -148,22 +176,22 @@ PixelTemplateSmearerBase::process(TrackingRecHitProductPtr product) const
                                         mergeGroupByHit[i]->smearIt = 1;
                                     }
 
-                                    // Step 2: iterate over all hits, replace mgbh[j] by mgbh[i] (so that nobody points to i)                               
-                                    MergeGroup * mgbhj = mergeGroupByHit[j];                                                               
+                                    // Step 2: iterate over all hits, replace mgbh[j] by mgbh[i] (so that nobody points to i)
+                                    MergeGroup * mgbhj = mergeGroupByHit[j];                    
                                     for ( int k = 0; k < nHits; ++k )
                                     {
                                             if ( mgbhj == mergeGroupByHit[k])
                                             {
-                                                // Hit k also uses the same merge group, tell them to switch to mgbh[i]                                             
+                                                // Hit k also uses the same merge group, tell them to switch to mgbh[i]
                                                 mergeGroupByHit[k] = mergeGroupByHit[i];
 					    }
                                     }
                                     mgbhj->smearIt = 0;
                                     mergeGroupByHit[i]->smearIt = 1;
 
-                                    //  Step 3 would have been to delete mgbh[j]... however, we'll do that at the end anyway.                              
-                                    //  The key was to prevent mgbh[j] from being accessed further, and we have done that,                                 
-                                    //  since now no mergeGroupByHit[] points to mgbhj any more.  Note that the above loop                                
+                                    //  Step 3 would have been to delete mgbh[j]... however, we'll do that at the end anyway.
+                                    //  The key was to prevent mgbh[j] from being accessed further, and we have done that,
+                                    //  since now no mergeGroupByHit[] points to mgbhj any more.  Note that the above loop
                                     //  also set mergeGroupByHit[i] = mergeGroupByHit[j], too. 
                                 }
                             }
@@ -253,7 +281,7 @@ PixelTemplateSmearerBase::process(TrackingRecHitProductPtr product) const
 //------------------------------------------------------------------------------
 //   Smear one hit.  The main action is in here.
 //------------------------------------------------------------------------------
-FastSingleTrackerRecHit PixelTemplateSmearerBase::smearHit(
+FastSingleTrackerRecHit PixelTemplateSmearerBase::smearHit (
     const PSimHit& simHit,
     const PixelGeomDetUnit* detUnit,
     const double boundX,
@@ -261,25 +289,29 @@ FastSingleTrackerRecHit PixelTemplateSmearerBase::smearHit(
     RandomEngineAndDistribution const* random) const
 {
 
-    // at the beginning the position is the Local Point in the local pixel module reference frame
-    // same code as in PixelCPEBase
+    //--- At the beginning the position is the Local Point in the local pixel module reference frame
+    //    same code as in PixelCPEBase
+    //
     LocalVector localDir = simHit.momentumAtEntry().unit();
     float locx = localDir.x();
     float locy = localDir.y();
     float locz = localDir.z();
 
+    //--- cotangent of local angles \alpha and \beta.
+    //    alpha: angle with respect to local x axis in local (x,z) plane
+    //    beta: angle with respect to local y axis in local (y,z) plane
+    //
     float cotalpha = locx/locz;
     float cotbeta = locy/locz;
-    float sign=1.;
-    
-    if(isForward)
-    {
-        if( cotbeta < 0 )
-        {
-            sign=-1.;
-        }
-        cotbeta = sign*cotbeta;
-    }
+
+    //--- Save the original signs of cot\alpha and cot\beta
+    int signOfCotalpha = (cotalpha < 0) ? -1 : 1;   // sign(cotalpha);
+    int signOfCotbeta  = (cotbeta  < 0) ? -1 : 1;   // sign(cotbeta);
+    //
+    //--- Use absolute values to find the templates from the list
+    cotalpha *= signOfCotalpha;  // = abs(cotalpha)
+    cotbeta  *= signOfCotbeta;   // = abs(cotbeta)
+
 
     const PixelTopology* theSpecificTopology = &(detUnit->specificType().specificTopology());
     const RectangularPixelTopology *rectPixelTopology = static_cast<const RectangularPixelTopology*>(theSpecificTopology);
@@ -428,10 +460,10 @@ FastSingleTrackerRecHit PixelTemplateSmearerBase::smearHit(
 
 
     //--- Prepare to return results
-    Local3DPoint thePosition;  
-    double       thePositionX; 
-    double       thePositionY; 
-    double       thePositionZ; 
+    Local3DPoint thePosition;
+    double       theShiftInX; 
+    double       theShiftInY; 
+    double       theShiftInZ; 
     LocalError   theError;     
     double       theErrorX;    
     double       theErrorY;    
@@ -544,22 +576,11 @@ FastSingleTrackerRecHit PixelTemplateSmearerBase::smearHit(
 
     // Local Error is 2D: (xx,xy,yy), square of sigma in first an third position 
     // as for resolution matrix
-    // Generate position
-    // get resolution histograms
-    int cotalphaHistBin = (int)( ( cotalpha - rescotAlpha_binMin ) / rescotAlpha_binWidth + 1 );
-    int cotbetaHistBin  = (int)( ( cotbeta  - rescotBeta_binMin )  / rescotBeta_binWidth + 1 );
-    // protection against out-of-range (undeflows and overflows)
-    if (cotalphaHistBin < 1) cotalphaHistBin = 1; 
-    if (cotbetaHistBin  < 1) cotbetaHistBin  = 1; 
-    if (cotalphaHistBin > (int)rescotAlpha_binN) cotalphaHistBin = (int)rescotAlpha_binN; 
-    if (cotbetaHistBin  > (int)rescotBeta_binN) cotbetaHistBin  = (int)rescotBeta_binN; 
-    //
-    ///unsigned int theXHistN;
-    ///unsigned int theYHistN;
 
-
-    //--- Pointer to the set of histograms used to generate the rec hit positions
-    //    (for X and Y separately)
+    //--- Next, we need to generate the smeared position.  First we need to figure
+    //    out which kind of histograms we are supposed to use for this particular hit.
+    //    These are pointers to the set of histograms used to generate the rec hit 
+    //    positions.  (We need to handle X and Y separately.)
     PixelResolutionHistograms * resHistsX = nullptr;
     PixelResolutionHistograms * resHistsY = nullptr;
 
@@ -569,14 +590,14 @@ FastSingleTrackerRecHit PixelTemplateSmearerBase::smearHit(
     }
     else {
       //--- Decide resolution histogram set for X
-      if ( (singlex && hitbigx) || (!isForward && hasBigPixelInX) ) {
+      if ( (singlex && hitbigx) || (isBarrel && hasBigPixelInX) ) {
 	resHistsX = theBigPixelResolutions;
       }
       else {
 	resHistsX = theRegularPixelResolutions;
       }
       //--- Decide resolution histogram set for Y
-      if ( (singley && hitbigy) || (!isForward && hasBigPixelInY) ) {
+      if ( (singley && hitbigy) || (isBarrel && hasBigPixelInY) ) {
 	resHistsY = theBigPixelResolutions;
       }
       else {
@@ -606,16 +627,19 @@ FastSingleTrackerRecHit PixelTemplateSmearerBase::smearHit(
     do 
     {
         // Generate the position (x,y of the rec hit).
-        thePositionX = xgen->generate(random);
-        thePositionY = ygen->generate(random);
+        theShiftInX = xgen->generate(random);
+        theShiftInY = ygen->generate(random);
 
-        if( isForward ) thePositionY *= sign;   // flip Y in forward &&& CHECK
-        thePositionZ = 0.0; // set to the mid-plane of the sensor.
+	// Now multiply by the sign of the cotangent of appropriate angle
+	theShiftInX *= signOfCotalpha;
+	theShiftInY *= signOfCotbeta;
+
+	theShiftInZ = 0.0; // set to the mid-plane of the sensor.
 
         thePosition = Local3DPoint(
-            simHit.localPosition().x() + thePositionX, 
-            simHit.localPosition().y() + thePositionY, 
-            simHit.localPosition().z() + thePositionZ
+            simHit.localPosition().x() + theShiftInX, 
+            simHit.localPosition().y() + theShiftInY, 
+            simHit.localPosition().z() + theShiftInZ
         );
         retry++;
         if (retry > 10) 
@@ -682,7 +706,7 @@ processMergeGroups(
 
 
 FastSingleTrackerRecHit PixelTemplateSmearerBase::
-smearMergeGroup(
+smearMergeGroup (
     MergeGroup* mg,
     const PixelGeomDetUnit * detUnit,
     const double boundX, const double boundY,
@@ -719,21 +743,20 @@ smearMergeGroup(
     float locy = loccy/nHit;
     float locz = loccz/nHit;
 
-    // alpha: angle with respect to local x axis in local (x,z) plane
+    //--- cotangent of local angles \alpha and \beta.
+    //    alpha: angle with respect to local x axis in local (x,z) plane
+    //    beta: angle with respect to local y axis in local (y,z) plane
+    //
     float cotalpha = locx/locz;
-    // beta: angle with respect to local y axis in local (y,z) plane
     float cotbeta = locy/locz;
-    float sign=1.;
 
-    if( isForward )
-    {
-        if( cotbeta < 0 )
-        {
-            sign=-1.;
-        }
-        cotbeta = sign*cotbeta;
-    }
-
+    //--- Save the original signs of cot\alpha and cot\beta
+    int signOfCotalpha = (cotalpha < 0) ? -1 : 1;   // sign(cotalpha);
+    int signOfCotbeta  = (cotbeta  < 0) ? -1 : 1;   // sign(cotbeta);
+    //
+    //--- Use absolute values to find the templates from the list
+    cotalpha *= signOfCotalpha;  // = abs(cotalpha)
+    cotbeta  *= signOfCotbeta;   // = abs(cotbeta)
 
     float lpx = locpx/nHit;
     float lpy = locpy/nHit;
@@ -751,16 +774,16 @@ smearMergeGroup(
     int	xbin = (int)xhit;
     float yfrac= yhit - (float)ybin;
     float xfrac= xhit - (float)xbin;
-    //Protect againt ybin, xbin being outside of range [0-39]
+    // Protect againt ybin, xbin being outside of range [0-39]
     if( ybin < 0 )    ybin = 0;
     if( ybin > 39 )   ybin = 39;
     if( xbin < 0 )    xbin = 0;
     if( xbin > 39 )   xbin = 39; 
 
-    //Variables for SiPixelTemplate output
-    //qBin -- normalized pixel charge deposition
+    // Variables for SiPixelTemplate output
+    // qBin -- normalized pixel charge deposition
     float qbin_frac[4];
-    //Single pixel cluster projection possibility
+    // Single pixel cluster projection possibility
     float ny1_frac, ny2_frac, nx1_frac, nx2_frac;
     bool singlex = false, singley = false;
     SiPixelTemplate templ(thePixelTemp_);
@@ -804,14 +827,12 @@ smearMergeGroup(
 
     //--- Prepare to return results
     Local3DPoint thePosition;  
-    double       thePositionX; 
-    double       thePositionY; 
-    double       thePositionZ; 
+    double       theShiftInX; 
+    double       theShiftInY; 
+    double       theShiftInZ; 
     LocalError   theError;     
     double       theErrorX;    
     double       theErrorY;    
-    //double       theErrorZ;    
-
 
 
     //------------------------------
@@ -893,18 +914,20 @@ smearMergeGroup(
         const SimpleHistogramGenerator* xgen = new SimpleHistogramGenerator( (TH1F*) theMergedPixelResolutionXFile-> Get("th1x")); 
         const SimpleHistogramGenerator* ygen = new SimpleHistogramGenerator( (TH1F*) theMergedPixelResolutionYFile-> Get("th1y")); 
 
-        thePositionX = xgen->generate(random);
-        thePositionY = ygen->generate(random);
+        // Generate the position (x,y of the rec hit).
+        theShiftInX = xgen->generate(random);
+        theShiftInY = ygen->generate(random);
 
-        if( isForward )
-        {
-            thePositionY *= sign;
-        }
-        thePositionZ = 0.0; // set at the centre of the active area
-        thePosition = 
-	           Local3DPoint(lpx + thePositionX , 
-                       lpy + thePositionY , 
-                       lpz + thePositionZ );
+	// Now multiply by the sign of the cotangent of appropriate angle
+	theShiftInX *= signOfCotalpha;
+	theShiftInY *= signOfCotbeta;
+
+        theShiftInZ = 0.0; // set at the centre of the active area
+
+        thePosition =
+	  Local3DPoint( lpx + theShiftInX , 
+			lpy + theShiftInY , 
+			lpz + theShiftInZ );
         
         retry++;
         if (retry > 10)
@@ -947,6 +970,10 @@ bool PixelTemplateSmearerBase::hitsMerge(const PSimHit& simHit1,const PSimHit& s
 }
 
 
+
+
+// &&& Petar: I'm not sure we actually need the function below...
+
 //-----------------------------------------------------------------------------
 // The isFlipped() is a silly way to determine which detectors are inverted.
 // In the barrel for every 2nd ladder the E field direction is in the
@@ -959,11 +986,11 @@ bool PixelTemplateSmearerBase::hitsMerge(const PSimHit& simHit1,const PSimHit& s
 // in the E direction) to global coordinates. There is probably a much 
 // better way.(PJ: And faster!)
 //-----------------------------------------------------------------------------
-bool PixelTemplateSmearerBase::isFlipped(const PixelGeomDetUnit* theDet) const
-{
-    float tmp1 = theDet->surface().toGlobal(Local3DPoint(0.,0.,0.)).perp();
-    float tmp2 = theDet->surface().toGlobal(Local3DPoint(0.,0.,1.)).perp();
-    return tmp2<tmp1;
-}
+// bool PixelTemplateSmearerBase::isFlipped(const PixelGeomDetUnit* theDet) const
+// {
+//     float tmp1 = theDet->surface().toGlobal(Local3DPoint(0.,0.,0.)).perp();
+//     float tmp2 = theDet->surface().toGlobal(Local3DPoint(0.,0.,1.)).perp();
+//     return tmp2<tmp1;
+// }
 
 
