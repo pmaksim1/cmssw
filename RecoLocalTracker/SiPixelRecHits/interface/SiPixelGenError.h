@@ -1,11 +1,15 @@
 //
-//  SiPixelGenError.h (v2.00)
+//  SiPixelGenError.h (v2.10)
 //
 //  Object to contain Lorentz drift and error information for the Generic Algorithm
 //
 // Created by Morris Swartz on 1/10/2014.
 //
 // Update for Phase 1 FPix, M.S. 1/15/17
+//  V2.01 - Allow subdetector ID=5 for FPix R2P2, Fix error message
+//  V2.10 - Update the variable size [SI_PIXEL_TEMPLATE_USE_BOOST] option so that it works with VI's enhancements
+
+
 //
 
 // Build the template storage structure from several pieces
@@ -16,6 +20,7 @@
 
 #include<vector>
 #include<cassert>
+#include "boost/multi_array.hpp"
 
 #ifndef SI_PIXEL_TEMPLATE_STANDALONE
 #include "CondFormats/SiPixelObjects/interface/SiPixelGenErrorDBObject.h"
@@ -77,11 +82,19 @@ struct SiPixelGenErrorHeader {           //!< template header structure
 
 struct SiPixelGenErrorStore { //!< template storage structure
    SiPixelGenErrorHeader head;
+#ifndef SI_PIXEL_TEMPLATE_USE_BOOST
    float cotbetaY[60];
    float cotbetaX[5];
    float cotalphaX[29];
    SiPixelGenErrorEntry enty[60];     //!< 60 Barrel y templates spanning cluster lengths from 0px to +18px [28 entries for fpix]
    SiPixelGenErrorEntry entx[5][29];  //!< 29 Barrel x templates spanning cluster lengths from -6px (-1.125Rad) to +6px (+1.125Rad) in each of 5 slices [3x29 for fpix]
+#else
+   float* cotbetaY;
+   float* cotbetaX;
+   float* cotalphaX;   
+   boost::multi_array<SiPixelGenErrorEntry,1> enty;     //!< use 1d entry to store [60] barrel entries or [28] fpix entries
+   boost::multi_array<SiPixelGenErrorEntry,2> entx;     //!< use 2d entry to store [5][29] barrel entries or [3][29] fpix entries
+#endif
 } ;
 
 
@@ -118,6 +131,11 @@ public:
    // Interpolate input beta angle to estimate the average charge. return qbin flag for input cluster charge, and estimate y/x errors and biases for the Generic Algorithm.
    int qbin(int id, float cotalpha, float cotbeta, float locBz, float locBx, float qclus, bool irradiationCorrections,
             int& pixmx, float& sigmay, float& deltay, float& sigmax, float& deltax,
+            float& sy1, float& dy1, float& sy2, float& dy2, float& sx1, float& dx1, float& sx2, float& dx2);
+            
+// Overload to provide backward compatibility
+
+   int qbin(int id, float cotalpha, float cotbeta, float locBz, float locBx, float qclus, float& pixmx, float& sigmay, float& deltay, float& sigmax, float& deltax,
             float& sy1, float& dy1, float& sy2, float& dy2, float& sx1, float& dx1, float& sx2, float& dx2);
    // Overloaded method to provide only the LA parameters
    int qbin(int id);
