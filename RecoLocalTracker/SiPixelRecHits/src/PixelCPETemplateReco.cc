@@ -76,13 +76,13 @@ PixelCPETemplateReco::PixelCPETemplateReco(edm::ParameterSet const & conf,
       //cout << "PixelCPETemplateReco : Loading templates for barrel and forward from ASCII files ----------" << endl;
       barrelTemplateID_  = conf.getParameter<int>( "barrelTemplateID" );
       forwardTemplateID_ = conf.getParameter<int>( "forwardTemplateID" );
-      templateDir_       = conf.getParameter<int>( "directoryWithTemplates" );
+      templateDir_       = conf.getParameter<string>( "directoryWithTemplates" );
      
       if ( !SiPixelTemplate::pushfile( barrelTemplateID_  , thePixelTemp_ , templateDir_ ) )
          throw cms::Exception("PixelCPETemplateReco")
 	 << "\nERROR: Template ID " << barrelTemplateID_ << " not loaded correctly from text file. Reconstruction will fail.\n\n";
       
-      if ( !SiPixelTemplate::pushfile( 41, thePixelTemp_ ) )
+      if ( !SiPixelTemplate::pushfile( forwardTemplateID_, thePixelTemp_ ) )
          throw cms::Exception("PixelCPETemplateReco")
 	 << "\nERROR: Template ID " << forwardTemplateID_ << " not loaded correctly from text file. Reconstruction will fail.\n\n";
    }
