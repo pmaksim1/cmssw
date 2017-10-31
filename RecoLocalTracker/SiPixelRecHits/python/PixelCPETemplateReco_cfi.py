@@ -20,9 +20,13 @@ templates = cms.ESProducer("PixelCPETemplateRecoESProducer",
 )
 
 # This customization will be removed once we get the templates for phase2 pixel
+# Petar: not true.  We'll keep it since some parameters are different -- we still load from ascii file...
 from Configuration.Eras.Modifier_phase2_tracker_cff import phase2_tracker
 phase2_tracker.toModify(templates,
   LoadTemplatesFromDB = False,
   DoLorentz = False,
+  barrelTemplateID = 289,
+  forwardTemplateID = 290,
+  directoryWithTemplates = cms.string('RecoLocalTracker/SiPixelRecHits/data/'),
 )
 
