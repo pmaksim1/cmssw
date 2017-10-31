@@ -82,7 +82,7 @@ PixelCPETemplateReco::PixelCPETemplateReco(edm::ParameterSet const & conf,
          throw cms::Exception("PixelCPETemplateReco")
 	 << "\nERROR: Template ID " << barrelTemplateID_ << " not loaded correctly from text file. Reconstruction will fail.\n\n";
       
-      if ( !SiPixelTemplate::pushfile( forwardTemplateID_, thePixelTemp_ ) )
+      if ( !SiPixelTemplate::pushfile( forwardTemplateID_, thePixelTemp_ , templateDir_ ) )
          throw cms::Exception("PixelCPETemplateReco")
 	 << "\nERROR: Template ID " << forwardTemplateID_ << " not loaded correctly from text file. Reconstruction will fail.\n\n";
    }
