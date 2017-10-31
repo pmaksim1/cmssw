@@ -25,8 +25,8 @@ from Configuration.Eras.Modifier_phase2_tracker_cff import phase2_tracker
 phase2_tracker.toModify(templates,
   LoadTemplatesFromDB = False,
   DoLorentz = False,
-  barrelTemplateID = 292,
-  forwardTemplateID = 291,
-  directoryWithTemplates = cms.string('RecoLocalTracker/SiPixelRecHits/data/'),
+  barrelTemplateID = cms.int32(292),
+  forwardTemplateID = cms.int32(291),
+  directoryWithTemplates = cms.string('RecoLocalTracker/SiPixelRecHits/data/')
 )
 
