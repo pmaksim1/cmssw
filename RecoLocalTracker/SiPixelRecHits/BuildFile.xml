@@ -10,6 +10,7 @@
 <use   name="TrackingTools/TrajectoryState"/>
 <use   name="boost"/>
 <use   name="vdt_headers"/>
+<Flags CppDefines="SI_PIXEL_TEMPLATE_USE_BOOST=1"/>
 
 <export>
   <lib   name="1"/>
