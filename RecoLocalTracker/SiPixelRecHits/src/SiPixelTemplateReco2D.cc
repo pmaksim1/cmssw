@@ -139,7 +139,7 @@ int SiPixelTemplateReco2D::PixelTempReco3D(int id, float cotalpha, float cotbeta
    float sigma2[NPIXMAX];
    float minmax = templ2D.pixmax();
    int imin=BYM2, imax=0, jmin=BXM2, jmax=0;
-   float ylow0, yhigh0, xlow0, xhigh0;
+   float ylow0 = 0.f, yhigh0 = 0.f, xlow0 = 0.f, xhigh0 = 0.f;
    float ye = 0.f, xe;
    int npixel = 0;
    float ysum[BYM2], ypos[BYM2];
