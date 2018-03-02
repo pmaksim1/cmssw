@@ -1,5 +1,5 @@
 //
-//  SiPixelTemplate2D.h (v2.21)
+//  SiPixelTemplate2D.h (v2.35)
 //
 //  Full 2-D templates for cluster splitting, simulated cluster reweighting, and improved cluster probability
 //
@@ -11,6 +11,9 @@
 // v2.10 - Change chi2 and error scaling information to work with partially reconstructed clusters
 // v2.20 - Add cluster charge probability information, side loading for template generation
 // v2.21 - Double derivative interval [improves fit convergence]
+// v2.25 - Resize template store to accommodate FPix Templates
+// v2.30 - Fix bug found by P. Shuetze that compromises sqlite file loading
+// v2.35 - Add directory path selection to the ascii pushfile method
 //
 
 // Build the template storage structure from several pieces
@@ -98,7 +101,7 @@ struct SiPixelTemplateHeader2D {           //!< template header structure
 struct SiPixelTemplateStore2D { //!< template storage structure
    SiPixelTemplateHeader2D head;
 #ifndef SI_PIXEL_TEMPLATE_USE_BOOST
-   SiPixelTemplateEntry2D entry[73][5];  //!< use 2d entry to store [47][5] barrel entries or [5][9] fpix
+   SiPixelTemplateEntry2D entry[73][7];  //!< use 2d entry to store [47][5] barrel entries or [5][9] fpix
 #else
    boost::multi_array<SiPixelTemplateEntry2D,2> entry;  //!< use 2d entry to store [47][5] barrel entries or [5][9] fpix entries
 #endif
@@ -131,8 +134,9 @@ class SiPixelTemplate2D {
 public:
    SiPixelTemplate2D(const std::vector< SiPixelTemplateStore2D > & thePixelTemp) : thePixelTemp_(thePixelTemp) {id_current_ = -1; index_id_ = -1; cota_current_ = 0.; cotb_current_ = 0.;} //!< Default constructor
    
-   static bool pushfile(int filenum, std::vector< SiPixelTemplateStore2D > & thePixelTemp_);     // load the private store with info from the
-   // file with the index (int) filenum
+// load the private store with info from the
+   // file with the index (int) filenum ${dir}template_summary_zp${filenum}.out
+   static bool pushfile(int filenum, std::vector< SiPixelTemplateStore2D > & thePixelTemp_, std::string dir = "");     
    
 #ifndef SI_PIXEL_TEMPLATE_STANDALONE
    static bool pushfile(const SiPixel2DTemplateDBObject& dbobject, std::vector< SiPixelTemplateStore2D > & thePixelTemp_);     // load the private store with info from db

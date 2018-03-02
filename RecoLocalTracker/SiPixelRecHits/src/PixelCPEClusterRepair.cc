@@ -514,7 +514,7 @@ PixelCPEClusterRepair::localError(DetParam const & theDetParam,  ClusterParam & 
    //   const float sig12 = 1./sqrt(12.0);
    //   float xerr = theDetParam.thePitchX *sig12;
    //   float yerr = theDetParam.thePitchY *sig12;
-   float xerr, yerr;
+   float xerr = 0.0f, yerr = 0.0f;
    
    // Check if the errors were already set at the clusters splitting level
    if ( theClusterParam.theCluster->getSplitClusterErrorX() > 0.0f && theClusterParam.theCluster->getSplitClusterErrorX() < 7777.7f &&

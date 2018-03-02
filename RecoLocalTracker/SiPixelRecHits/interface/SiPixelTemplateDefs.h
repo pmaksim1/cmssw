@@ -4,6 +4,8 @@
 // Created by Morris Swartz on 12/01/09.
 // 2009 __TheJohnsHopkinsUniversity__.
 //
+// V2.00 - Resize the 2D objects to improve angle acceptance
+//
 //
 
 // Define template buffer size parameters

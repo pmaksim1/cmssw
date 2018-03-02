@@ -147,6 +147,8 @@ int SiPixelTemplateReco2D::PixelTempReco3D(int id, float cotalpha, float cotbeta
    
    //Truncate pixels and make a y-projection
    
+   ysum[0] = 0.f;
+   ypos[0] = -0.5f*ysize;
    for(i=1; i<nclusy+1; ++i) {
       float ypitch = ysize;
       float maxpix = minmax;
@@ -180,15 +182,17 @@ int SiPixelTemplateReco2D::PixelTempReco3D(int id, float cotalpha, float cotbeta
       //      qtot += ysum[i];
       ye += ypitch;
    }
+   ysum[nclusy+1] = 0.f;
+   ypos[nclusy+1] = yhigh0+0.5f*ysize;
    
    //   float xbaryc = xq/qtot;
    
    // Quit if only one pixel in cluster
    
-   //   if(npixel < 2 ) {
-   //      LOGDEBUG("SiPixelTemplateReco2D") << "2D fit not possible with single pixel" << ENDL;
-   //      return 1;
-   //   }
+      if(npixel < 2 ) {
+//         LOGDEBUG("SiPixelTemplateReco2D") << "2D fit not possible with single pixel" << ENDL;
+         return 1;
+      }
    
    
    //   if(jmax-jmin == 0 ) {
@@ -240,14 +244,18 @@ int SiPixelTemplateReco2D::PixelTempReco3D(int id, float cotalpha, float cotbeta
    
    // Calculate the corrected distance from the ylow and yhigh to the cluster center
    
-   //   float delycor = templ2D.delyavg();
-   //   float halfy = 0.5f*(templeny-delycor)*ysize;
+//   float delycor = templ2D.delyavg();
+//   float halfy = 0.5f*(templeny-delycor)*ysize;
+   
+//   printf("templeny = %f, deltay = %f, delycor = %f, halfy = %f \n", templeny, deltay, delycor, halfy);
    
    //  x0 and y0 are best guess seeds for the fit
    
    //   float x0 = 0.5f*(xlow0 + xhigh0) + 0.5f*xsize;
    float x0 = 0.5f*(xlow0 + xhigh0) - templ2D.lorxdrift();
    float y0 = 0.5f*(ylow + yhigh) - templ2D.lorydrift();
+//   float y1 = yhigh - halfy - templ2D.lorydrift();
+//   printf("y0 = %f, y1 = %f \n", y0, y1);
    //   float y0 = 0.5f*(ylow + yhigh);
    
    // If there are missing edge columns, set up missing column flags and number
@@ -259,17 +267,17 @@ int SiPixelTemplateReco2D::PixelTempReco3D(int id, float cotalpha, float cotbeta
       case 0:
          break;
       case 1:
-         //         y0 = yhigh - halfy - templ2D.lorydrift();
+//         y0 = yhigh - halfy - templ2D.lorydrift();
          imisshigh = imin-1;
          imisslow = -1;
          break;
       case 2:
-         //         y0 = ylow + halfy - templ2D.lorydrift();
+//         y0 = ylow + halfy - templ2D.lorydrift();
          imisshigh = -1;
          imisslow = imax+1;
          break;
       case 3:
-         //         y0 = yhigh - halfy - templ2D.lorydrift();
+//         y0 = yhigh - halfy - templ2D.lorydrift();
          imisshigh = imin-1;
          imisslow = -1;
          npass = 2;
@@ -424,15 +432,15 @@ int SiPixelTemplateReco2D::PixelTempReco3D(int id, float cotalpha, float cotbeta
       // Calculate chi2 over a grid of several seeds and choose the smallest
       
       chi2min[ipass] = 1000000.f;
-      float chi2, qtemplate, qactive, qtfrac, x2D = 0.0, y2D = 0.0;
+      float chi2, qtemplate, qactive, qtfrac = 0.f, x2D = 0.f, y2D = 0.f;
       for(int is = -4; is<5; ++is) {
          for(int js = -2; js<3; ++js) {
             float xtry = x0 + js*xsize/4.;
             float ytry = y0 + is*ysize/4.;
-            //      for(int is = -8; is<9; ++is) {
-            //         for(int js = -4; js<5; ++js) {
-            //            float xtry = x0 + js*xsize/8.;
-            //            float ytry = y0 + is*ysize/8.;
+//      for(int is = -8; is<9; ++is) {
+//         for(int js = -4; js<5; ++js) {
+//            float xtry = x0 + js*xsize/8.;
+//            float ytry = y0 + is*ysize/8.;
             chi2 = 0.f;
             qactive = 0.f;
             for(j=0; j<BXM2; ++j) {for(i=0; i<BYM2; ++i) {template2d[j][i] = 0.f;}}
@@ -457,8 +465,7 @@ int SiPixelTemplateReco2D::PixelTempReco3D(int id, float cotalpha, float cotbeta
       
       
       //   printf("\n begin iterative minimization \n");
-      
-      
+
       
       int niter = 0;
       float xstep = 1.0f, ystep = 1.0f;
@@ -517,7 +524,7 @@ int SiPixelTemplateReco2D::PixelTempReco3D(int id, float cotalpha, float cotbeta
          xstep *= 0.9f;
          ystep = minv12*sumptdt1 + minv22*sumptdt2;
          ystep *= 0.9f;
-         //         printf("niter = %d, chisq = %f, xstep = %f, ystep = %f \n", niter, chi2, xstep, ystep);
+//         printf("niter = %d, chisq = %f, xstep = %f, ystep = %f \n", niter, chi2, xstep, ystep);
          if(fabs(xstep) > 2.*xsize || fabs(ystep) > 2.*ysize) break;
          x2D += xstep;
          y2D += ystep;
@@ -571,7 +578,7 @@ int SiPixelTemplateReco2D::PixelTempReco3D(int id, float cotalpha, float cotbeta
    float scaley = templ2D.scaley(qbin);
    float offsetx = templ2D.offsetx(qbin);
    float offsety = templ2D.offsety(qbin);
-   //   printf("scalex = %f, scaley = %f, offsetx = %f, offsety = %f \n", scalex, scaley, offsetx, offsety);
+//   printf("scalex = %f, scaley = %f, offsetx = %f, offsety = %f \n", scalex, scaley, offsetx, offsety);
    
    // This 2D code has the origin (0,0) at the lower left edge of the input cluster
    // That is now pixel [1,1] and the template reco convention is the middle
@@ -583,11 +590,13 @@ int SiPixelTemplateReco2D::PixelTempReco3D(int id, float cotalpha, float cotbeta
    if(ydouble[0]) yrec -= ysize/2.f;
    if(xerr2[ipass] > 0.f) {
       sigmax = scalex*sqrt(xerr2[ipass]);
+      if(sigmax < 3.f) sigmax = 3.f;
    } else {
       sigmax = 10000.f;
    }
    if(yerr2[ipass] > 0.f) {
       sigmay = scaley*sqrt(yerr2[ipass]);
+      if(sigmay < 3.f) sigmay = 3.f;
    } else {
       sigmay = 10000.f;
    }

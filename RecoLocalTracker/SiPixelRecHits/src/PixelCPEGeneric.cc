@@ -88,7 +88,7 @@ PixelCPEGeneric::PixelCPEGeneric(edm::ParameterSet const & conf,
             << ( *genErrorDBObject_ ).version();
          if(MYDEBUG) cout<<"Loaded genErrorDBObject v"<<( *genErrorDBObject_ ).version()<<endl;
       } else  { // From file
-	 if ( !SiPixelGenError::pushfile( -999, thePixelGenError_ , "" ) )
+         if ( !SiPixelGenError::pushfile( -999, thePixelGenError_ ) )
             throw cms::Exception("InvalidCalibrationLoaded")
             << "ERROR: GenErrors not loaded correctly from text file. Reconstruction will fail.";
       } // if load from DB

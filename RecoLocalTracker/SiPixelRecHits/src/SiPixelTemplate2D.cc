@@ -1,5 +1,5 @@
 //
-//  SiPixelTemplate2D.cc  Version 2.21
+//  SiPixelTemplate2D.cc  Version 2.35
 //
 //  Full 2-D templates for cluster splitting, simulated cluster reweighting, and improved cluster probability
 //
@@ -13,6 +13,9 @@
 // v2.10 - Change chi2 and error scaling information to work with partially reconstructed clusters
 // v2.20 - Add cluster charge probability information, side loading for template generation
 // v2.21 - Double derivative interval [improves fit convergence]
+// v2.25 - Resize template store to accommodate FPix Templates
+// v2.30 - Fix bug found by P. Shuetze that compromises sqlite file loading
+// v2.35 - Add directory path selection to the ascii pushfile method
 //
 //
 
@@ -54,7 +57,7 @@ using namespace edm;
 //! digits of filenum.
 //! \param filenum - an integer NNNN used in the filename template_summary_zpNNNN
 //****************************************************************
-bool SiPixelTemplate2D::pushfile(int filenum, std::vector< SiPixelTemplateStore2D > & thePixelTemp_)
+bool SiPixelTemplate2D::pushfile(int filenum, std::vector< SiPixelTemplateStore2D > & thePixelTemp_, std::string dir)
 {
    // Add template stored in external file numbered filenum to theTemplateStore
    
@@ -74,7 +77,7 @@ bool SiPixelTemplate2D::pushfile(int filenum, std::vector< SiPixelTemplateStore2
    //  Create different path in CMSSW than standalone
    
 #ifndef SI_PIXEL_TEMPLATE_STANDALONE
-   tout << "CalibTracker/SiPixelESProducers/data/template_summary2D_zp"
+   tout << dir << "template_summary2D_zp"
    << std::setw(4) << std::setfill('0') << std::right << filenum << ".out" << std::ends;
    std::string tempf = tout.str();
    edm::FileInPath file( tempf.c_str() );
@@ -415,13 +418,13 @@ bool SiPixelTemplate2D::pushfile(const SiPixel2DTemplateDBObject& dbobject, std:
             
          }
       }
-      
+         
+// Add this template to the store
+   
+   thePixelTemp_.push_back(theCurrentTemp);    
+     
    }
    
-   
-   // Add this template to the store
-   
-   thePixelTemp_.push_back(theCurrentTemp);
    
    return true;
    
@@ -869,7 +872,7 @@ bool SiPixelTemplate2D::xytemp(float xhit, float yhit, bool ydouble[BYM2], bool 
    int pixx, pixy, k0, k1, l0, l1, deltax, deltay, iflipy, jflipx, imin, imax, jmin, jmax;
    int m, n;
    float dx, dy, ddx, ddy, adx, ady, tmpxy;
-   //   const float deltaxy[2] = {8.33f, 12.5f};
+//   const float deltaxy[2] = {8.33f, 12.5f};
    const float deltaxy[2] = {16.67f, 25.0f};
    
    // Check to see if interpolation is valid
