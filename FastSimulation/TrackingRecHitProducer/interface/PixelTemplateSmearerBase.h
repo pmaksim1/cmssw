@@ -30,11 +30,11 @@
 // STL
 #include <vector>
 #include <string>
-#include <memory>
 
 class TFile;
 class RandomEngineAndDistribution;
 class SimpleHistogramGenerator;
+class PixelResolutionHistograms;
 
 class PixelTemplateSmearerBase:
     public TrackingRecHitAlgorithm
@@ -51,44 +51,41 @@ class PixelTemplateSmearerBase:
         std::vector< SiPixelTemplateStore > thePixelTemp_;
         int templateId;
         
-        bool isFlipped(const PixelGeomDetUnit* theDet) const;
-        //isForward, true for forward, false for barrel
-        bool isForward;
+        //--- Flag to tell us whether we are in barrel or in forward.
+	//    This is needed since the parameterization is slightly
+	//    different for forward, since all forward detectors cover
+	//    a smaller range of local incidence angles and thus
+	//    the clusters are shorter and have less charge.
+        bool isBarrel;
         
-        double rescotAlpha_binMin , rescotAlpha_binWidth;
-        unsigned int rescotAlpha_binN;
-        double rescotBeta_binMin  , rescotBeta_binWidth;
-        unsigned int rescotBeta_binN;
-        int resqbin_binMin, resqbin_binWidth;
-        unsigned int resqbin_binN;
-        
-
-        std::map<unsigned int, const SimpleHistogramGenerator*> theXHistos;
-        std::map<unsigned int, const SimpleHistogramGenerator*> theYHistos;
-
-        std::unique_ptr<TFile> theEdgePixelResolutionFile;
+	//--- The histogram storage containers.
+        PixelResolutionHistograms * theEdgePixelResolutions;
         std::string theEdgePixelResolutionFileName;
-        std::unique_ptr<TFile> theBigPixelResolutionFile;
+
+        PixelResolutionHistograms * theBigPixelResolutions;
         std::string theBigPixelResolutionFileName;
-        std::unique_ptr<TFile> theRegularPixelResolutionFile;
+
+        PixelResolutionHistograms * theRegularPixelResolutions;
         std::string theRegularPixelResolutionFileName;
-        std::unique_ptr<TFile> theMergingProbabilityFile;
+	
+	//--- Files with hit merging information:
+        TFile * theMergingProbabilityFile;
         std::string theMergingProbabilityFileName;
-        std::unique_ptr<TFile> theMergedPixelResolutionXFile;
+
+        TFile * theMergedPixelResolutionXFile;
         std::string theMergedPixelResolutionXFileName;
-        std::unique_ptr<TFile> theMergedPixelResolutionYFile;                                                                                        
+
+        TFile * theMergedPixelResolutionYFile;                  
         std::string theMergedPixelResolutionYFileName;
 
-        unsigned int theLayer;
-
+	
     public:
-
         explicit PixelTemplateSmearerBase(  const std::string& name,
 			              const edm::ParameterSet& config,
 			              edm::ConsumesCollector& consumesCollector );
 
-        ~PixelTemplateSmearerBase() override;
-        TrackingRecHitProductPtr process(TrackingRecHitProductPtr product) const override;
+        virtual ~PixelTemplateSmearerBase();
+        virtual TrackingRecHitProductPtr process(TrackingRecHitProductPtr product) const;
 
         //--- Process all unmerged hits. Calls smearHit() for each.
         TrackingRecHitProductPtr processUnmergedHits( 
